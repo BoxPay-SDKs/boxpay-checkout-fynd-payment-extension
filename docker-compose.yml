@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  payment-extension:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      - NODE_ENV=production
+      - BACKEND_PORT=8081
+      - EXTENSION_API_KEY=your_extension_api_key_here
+      - EXTENSION_API_SECRET=your_extension_api_secret_here
+      - EXTENSION_BASE_URL=your_extension_base_url_here
+    restart: unless-stopped 
