@@ -63,13 +63,27 @@ function App() {
     return companyId;
   };
 
+  useEffect(() => {
+    console.log('=== DEBUG URL PARAMS ===');
+    console.log('All params:', Object.fromEntries(searchParams.entries()));
+    console.log('Full URL:', window.location.href);
+    console.log('Cookies:', document.cookie);
+  }, []);
+
   const getCommonHeaders = () => {
     const appId = getApplication();
     const companyId = getCompanyId();
+  
+    // Check all common token param names Fynd might pass
+    const token = searchParams.get('auth_token') 
+      || searchParams.get('token')
+      || searchParams.get('fp_token');
+  
     return {
       'x-application-id': appId,
       'x-company-id': companyId,
-      'content-type': 'application/json'
+      'content-type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
     };
   };
 

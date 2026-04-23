@@ -342,7 +342,7 @@ exports.getPaymentDetailsHandler = async (req, res, next) => {
 
 /**
  * @desc Initiate refund with BoxPay
- * @route Called by Fynd when merchant initiates a refund
+ * @route POST /api/v1/payment_session/:gid/refund
  */
 exports.createRefundHandler = async (req, res, next) => {
   try {
@@ -367,51 +367,51 @@ exports.createRefundHandler = async (req, res, next) => {
     console.log('LOG: Initiating refund with BoxPay for gid:', gid);
 
     // POST https://test-apis.boxpay.tech/v0/merchants/:merchantId/sessions/:token/refunds
-    const boxpayResponse = await axios.post(
-      `${BOXPAY_BASE_URL}/merchants/${merchant_id}/sessions/${gid}/refunds`,
-      {
-        amount: String(amount),
-        currencyCode: currency || 'INR',
-        refundReference: requestId,
-        reason: 'Merchant initiated refund',
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${api_key}`,
-        },
-        timeout: 10000,
-      }
-    );
+    // const boxpayResponse = await axios.post(
+    //   `${BOXPAY_BASE_URL}/merchants/${merchant_id}/sessions/${gid}/refunds`,
+    //   {
+    //     amount: String(amount),
+    //     currencyCode: currency || 'INR',
+    //     refundReference: requestId,
+    //     reason: 'Merchant initiated refund',
+    //   },
+    //   {
+    //     headers: {
+    //       'Content-Type': 'application/json',
+    //       'Authorization': `Bearer ${api_key}`,
+    //     },
+    //     timeout: 10000,
+    //   }
+    // );
 
-    const boxpayData = boxpayResponse.data;
-    console.log('LOG: BoxPay refund response:', JSON.stringify(boxpayData, null, 2));
+    // const boxpayData = boxpayResponse.data;
+    // console.log('LOG: BoxPay refund response:', JSON.stringify(boxpayData, null, 2));
 
-    const refundId = boxpayData?.refundId || boxpayData?.id || requestId;
-    const refundUtr = boxpayData?.utr || boxpayData?.refundUtr || null;
+    // const refundId = boxpayData?.refundId || boxpayData?.id || requestId;
+    // const refundUtr = boxpayData?.utr || boxpayData?.refundUtr || null;
 
-    // Store refund in SQLite
-    await PaymentModel.storeRefund(gid, {
-      ...requestPayload,
-      refund_id: refundId,
-      refund_utr: refundUtr,
-    });
+    // // Store refund in SQLite
+    // await PaymentModel.storeRefund(gid, {
+    //   ...requestPayload,
+    //   refund_id: refundId,
+    //   refund_utr: refundUtr,
+    // });
 
-    // Build Fynd expected response format
-    const responseData = {
-      gid,
-      aggregator_payment_refund_details: {
-        status: refundStatus.REFUND_INITIATED,
-        amount: Number(amount),
-        currency: currency || 'INR',
-        request_id: requestId,
-        refund_utr: refundUtr,
-        payment_id: refundId,
-      },
-    };
+    // // Build Fynd expected response format
+    // const responseData = {
+    //   gid,
+    //   aggregator_payment_refund_details: {
+    //     status: refundStatus.REFUND_INITIATED,
+    //     amount: Number(amount),
+    //     currency: currency || 'INR',
+    //     request_id: requestId,
+    //     refund_utr: refundUtr,
+    //     payment_id: refundId,
+    //   },
+    // };
 
-    console.log('LOG: Response for create refund', responseData);
-    return res.status(200).json(responseData);
+    // console.log('LOG: Response for create refund', responseData);
+    return res.status(404).json(responseData);
 
   } catch (error) {
     console.error('LOG: Error in createRefundHandler:', error?.response?.data || error.message);

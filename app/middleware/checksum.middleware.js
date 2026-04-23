@@ -5,6 +5,7 @@ const { getHmacChecksum } = require('../utils/signature.util');
 const EXTENSION_API_SECRET = process.env.EXTENSION_API_SECRET;
 
 const verifyPlatformChecksum = (req, res, next) => {
+  console.log(`Log: Verify platform check ${JSON.stringify(req.body, null, 2)}`)
   const requestPayload = req.body;
 
   const checksum = getHmacChecksum(
@@ -12,8 +13,14 @@ const verifyPlatformChecksum = (req, res, next) => {
     EXTENSION_API_SECRET
   );
 
-  if (checksum !== req.headers.checksum)
+  console.log(`Log: Verify platform checksum ${checksum}`)
+  console.log(`Log: Verify platform error thrown ${checksum} ==== ${req.headers.checksum}`)
+
+
+  if (checksum !== req.headers.checksum) {
+    console.log(`Log: inside error ${checksum} ==== ${req.headers.checksum}`)
     throw new AuthorizationError('Invalid Checksum');
+  }
   next();
 };
 

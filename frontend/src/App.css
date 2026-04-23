@@ -270,6 +270,12 @@ input[type="url"]:focus {
   border: 1px solid #333333;
 }
 
+.message-box.error {
+  background-color: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+}
+
 .success-icon {
   font-size: 1.2rem;
   font-weight: bold;

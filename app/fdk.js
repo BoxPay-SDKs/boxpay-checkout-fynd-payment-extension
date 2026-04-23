@@ -49,7 +49,31 @@ const fdkExtension = setupFdk({
   debug: false,
   storage: storage,
   access_mode: 'offline',
+  // webhook_config:{
+  //   api_path: '/api/v1/webhooks',
+  //   // event_map: {
+  //   //   'company/product/create': {
+  //   //     version: '1',
+  //   //     handler: handleProductCreateEvent
+  //   //   },
+  //   //   'application/coupon/create': {
+  //   //     version: '1',
+  //   //     handler: handleCouponCreateEvent
+  //   //   },
+  //   // }
+  // }
 });
+
+// app.post('/api/v1/webhooks', async (req, res, next) => {
+//   try {
+//     await fdkExtension.webhookRegistry.processWebhook(req);
+//     console.log(`Log : Fdk server has sent a webhook on api/v1/webhooks ${JSON.stringify(req, null, 2)}`)
+//     return res.status(200).json({ success: true });
+//   } catch(err) {
+//     logger.error(err);
+//     return res.status(400).json({ success: false });
+//   }
+//   });
 
 module.exports = {
   fdkExtension,
