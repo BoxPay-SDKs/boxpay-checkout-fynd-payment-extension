@@ -1,5 +1,6 @@
 const { setupFdk } = require('@gofynd/fdk-extension-javascript/express');
 const { SQLiteStorage } = require('@gofynd/fdk-extension-javascript/express/storage');
+const { version } = require('os');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
@@ -20,6 +21,21 @@ const path = require('path');
  * For more information about storage options in FDK extensions:
  * https://github.com/gofynd/fdk-extension-javascript?tab=readme-ov-file#custom-storage-class
  */
+
+// ✅ Lazy load INSIDE the handler — avoids circular dependency
+async function createRefundHandler(eventName, payload, companyId, applicationId) {
+  console.log('[REFUND WEBHOOK RECEIVED]', {
+    eventName,
+    companyId,
+    applicationId,
+    merchant_refund_id: payload?.payload?.merchant_refund_id,
+    order_id: payload?.payload?.order_id,
+    payment_status: payload?.payload?.payment_status
+  });
+
+  // TODO: your business logic
+}
+
 const dbPath = path.join(process.cwd(), 'session_storage.db');
 const sqliteInstance = new sqlite3.Database(dbPath);
 
@@ -37,6 +53,7 @@ const fdkExtension = setupFdk({
       const application_id = req.query.application_id;
       // OAuth callback redirect URL - this endpoint will be called after successful OAuth2 authorization
       // and token exchange, redirecting to the credentials setup page
+      console.log(`request recievd ${req}`);
       return `${req.extension.base_url}/company/${req.query.company_id}/credentials?application_id=${application_id}`;
     },
     uninstall: async () => {
@@ -49,31 +66,24 @@ const fdkExtension = setupFdk({
   debug: false,
   storage: storage,
   access_mode: 'offline',
-  // webhook_config:{
-  //   api_path: '/api/v1/webhooks',
-  //   // event_map: {
-  //   //   'company/product/create': {
-  //   //     version: '1',
-  //   //     handler: handleProductCreateEvent
-  //   //   },
-  //   //   'application/coupon/create': {
-  //   //     version: '1',
-  //   //     handler: handleCouponCreateEvent
-  //   //   },
-  //   // }
-  // }
+  webhook_config: {
+    api_path: '/api/v1/fynd-webhooks',     // ← your webhook endpoint
+    notification_email: 'your@email.com',  // ← your email
+    subscribe_on_install: true,
+    event_map: {
+      'application/refund/refund_initiated': {   // ← refund event
+        version: '1',
+        handler: createRefundHandler,
+        provider: 'rest'
+      },
+      'application/refund/refund_done': {
+        version: '1',
+        handler: createRefundHandler,
+        provider: 'rest'
+      }
+    }
+  }
 });
-
-// app.post('/api/v1/webhooks', async (req, res, next) => {
-//   try {
-//     await fdkExtension.webhookRegistry.processWebhook(req);
-//     console.log(`Log : Fdk server has sent a webhook on api/v1/webhooks ${JSON.stringify(req, null, 2)}`)
-//     return res.status(200).json({ success: true });
-//   } catch(err) {
-//     logger.error(err);
-//     return res.status(400).json({ success: false });
-//   }
-//   });
 
 module.exports = {
   fdkExtension,

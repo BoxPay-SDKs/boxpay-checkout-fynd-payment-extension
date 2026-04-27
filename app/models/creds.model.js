@@ -1,9 +1,8 @@
-const { fdkExtension } = require('../fdk');
-
 const CredsModel = {
   // Store encrypted credentials
   storeCreds: async (appId,companyId, encryptedSecret) => {
     try {
+      const { fdkExtension } = require('../fdk');
       if (!fdkExtension) {
         throw new Error('FDK extension is not initialized');
       }
@@ -24,6 +23,7 @@ const CredsModel = {
   // Get encrypted credentials
   getCreds: async (appId) => {
     try {
+      const { fdkExtension } = require('../fdk');
       if (!fdkExtension) {
         throw new Error('FDK extension is not initialized');
       }
@@ -44,6 +44,7 @@ const CredsModel = {
   // Check if credentials exist
   checkCredsExist: async (appId) => {
     try {
+      const { fdkExtension } = require('../fdk');
       if (!fdkExtension) {
         throw new Error('FDK extension is not initialized');
       }

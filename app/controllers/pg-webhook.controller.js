@@ -142,7 +142,15 @@ exports.processPaymentWebhookHandler = async (req, res) => {
 
     if(webhookData?.status?.operation?.toLowerCase().includes('refund')) {
       console.error('LOG: refund webhook received in process payment webhook handler:', JSON.stringify(webhookData, null, 2));
-      response = await updateFyndRefundStatus(gid, boxpayStatus, webhookData, storedPayment);
+      // Add this temporarily
+// const platformClient = await fdkExtension.getPlatformClient(companyId);
+// const appClient = platformClient.application(appId);
+
+// // Get all methods on Payment object
+// const paymentProto = Object.getOwnPropertyNames(Object.getPrototypeOf(appClient.payment));
+// console.log('LOG: Payment methods:', JSON.stringify(paymentProto, null, 2));
+      // response = {success : true, message : 'message'}
+      // response = await updateFyndRefundStatus(gid, boxpayStatus, webhookData, storedPayment);
     } else {
        // Update Fynd with the payment status
       response = await updateFyndPaymentStatus(gid, boxpayStatus, webhookData, storedPayment);
@@ -163,44 +171,44 @@ exports.processPaymentWebhookHandler = async (req, res) => {
   }
 };
 
-/**
- * @desc Handle BoxPay refund webhook
- * @route POST /api/v1/webhook/refund/:company_id/:app_id
- */
-exports.processRefundWebhookHandler = async (req, res) => {
-  try {
-    const { company_id: companyId, app_id: appId } = req.params;
-    const webhookData = req.body;
+// /**
+//  * @desc Handle BoxPay refund webhook
+//  * @route POST /api/v1/webhook/refund/:company_id/:app_id
+//  */
+// exports.processRefundWebhookHandler = async (req, res) => {
+//   try {
+//     const { company_id: companyId, app_id: appId } = req.params;
+//     const webhookData = req.body;
 
-    console.log('LOG: Refund webhook received from BoxPay:', JSON.stringify(webhookData, null, 2));
+//     console.log('LOG: Refund webhook received from BoxPay:', JSON.stringify(webhookData, null, 2));
 
-    const gid = webhookData?.additionalMerchantReference
+//     const gid = webhookData?.additionalMerchantReference
 
-    if (!gid) {
-      console.error('LOG: No gid found in webhook payload');
-      return res.status(200).json({ success: true }); // returning error to BoxPay
-    }
+//     if (!gid) {
+//       console.error('LOG: No gid found in webhook payload');
+//       return res.status(200).json({ success: true }); // returning error to BoxPay
+//     }
 
-    const refundStatusMap = {
-      SUCCESS:    'APPROVED',
-      FAILED:     'FAILED',
-      PROCESSING: 'POSTED',
-      FAILED : 'REJECTED'
-    };
+//     const refundStatusMap = {
+//       SUCCESS:    'APPROVED',
+//       FAILED:     'FAILED',
+//       PROCESSING: 'POSTED',
+//       FAILED : 'REJECTED'
+//     };
 
-    const boxpayStatus = webhookData?.status?.status.toUpperCase();
-    const fyndRefundStatus = refundStatusMap[boxpayStatus] || 'refund_pending';
+//     const boxpayStatus = webhookData?.status?.status.toUpperCase();
+//     const fyndRefundStatus = refundStatusMap[boxpayStatus] || 'refund_pending';
 
-    // Update Fynd with refund status
-    await updateFyndRefundStatus(gid, fyndRefundStatus, webhookData);
+//     // Update Fynd with refund status
+//     await updateFyndRefundStatus(gid, fyndRefundStatus, webhookData);
 
-    return res.status(200).json({ success: true });
+//     return res.status(200).json({ success: true });
 
-  } catch (error) {
-    console.error('LOG: Error in processRefundWebhookHandler:', error.message);
-    return res.status(200).json({ success: true });
-  }
-};
+//   } catch (error) {
+//     console.error('LOG: Error in processRefundWebhookHandler:', error.message);
+//     return res.status(200).json({ success: true });
+//   }
+// };
 
 function generateChecksum(payload, secret) {
   return crypto
@@ -329,30 +337,63 @@ const updateFyndRefundStatus = async (gid, boxpayStatus, webhookData, storedPaym
     const appId = storedPayment?.app_id;
     const currency = webhookData?.money?.currencyCode
     const amount = webhookData?.money?.amount
+    const { success_url, cancel_url } = storedPayment;
     const platformClient = await fdkExtension.getPlatformClient(companyId);
     console.log(`LOG: Updating Fynd refund status → gid: ${gid}, status: ${fyndStatus}`);
-    const response = await platformClient.application(appId).payment.updateRefundSession({
-      gid:gid,                  // Global transaction ID
-      body: {
-        gid:gid,
-        // request_id: requestId,
-        status: fyndStatus,   // e.g. "refund_done", "refund_failed"
-        currency,
-        amount: amount,     // Amount in paise
-        aggregator_payment_refund_details: {
+    const payload = {
+      gid:gid,
+      // requestId: webhookData?.operationId,  // BoxPay refund/operation ID
+      status: fyndStatus,
+      currency:currency,
+      total_amount:amount,
+      refund_details: [
+        {
           status: fyndStatus,
-          amount: amount,
-          currency,
-          // request_id: requestId,
-          refund_utr: webhookData?.operationId,
+          amount:amount,
+          currency:currency,
           payment_id: webhookData?.transactionId,
+          request_id: webhookData?.operationId,
+          created : webhookData?.timestamp
         }
-      }
-    });
+      ],
+      payment_details: {
+        payment_id: webhookData?.transactionId,
+        aggregator_order_id: webhookData?.orderId || storedPayment?.order_id,
+        gid: gid,
+
+        status: fyndStatus,
+        g_user_id: storedPayment?.user_id || "123",
+
+        amount: amount,
+        amount_captured: amount,
+        currency: storedPayment?.currency || 'INR',
+        mode: "online",
+        payment_methods: [
+          {
+            code: webhookData?.paymentMethod?.type,
+            name: webhookData?.paymentMethod?.brand
+          }
+        ],
+        success_url: success_url,
+        cancel_url: cancel_url
+      },
+    }
+    console.log(`Log: update refuhd status api payload ${JSON.stringify(payload, null, 2)}`)
+    const checksum = generateChecksum(payload, EXTENSION_API_SECRET);
+    const response = await platformClient.application(appId)
+      .payment
+      .updateRefundSession({   // ← This creates the refund on Fynd
+        gid:gid,
+        requestId: webhookData?.operationId,
+        body: {
+          ...payload,
+          checksum
+        }
+      });
 
     console.log(`LOG: Fynd refund session api response → ${JSON.stringify(response, null, 2)}`)
     // Add Fynd updateRefundSession API call here when needed
-    console.log(`LOG: Fynd refund status updated → ${fyndRefundStatus}`);
+    console.log(`LOG: Fynd refund status updated → ${fyndStatus}`);
     return response;
   } catch (error) {
     console.error('LOG: Error updating Fynd refund status:', error.message);
