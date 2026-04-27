@@ -53,7 +53,7 @@ app.post('/api/v1/fynd-webhooks', async (req, res) => {
   console.log('LOG: Body —', JSON.stringify(req.body));
   try {
     await fdkExtension.webhookRegistry.processWebhook(req);
-    console.log(`Log:Webhooks received in api/vi/fynd-webhooks ${JSON.stringify(req, null, 2)}`)
+    console.log(`Log:Webhooks received in api/vi/fynd-webhooks ${JSON.stringify(req.body, null, 2)}`)
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error('LOG: Webhook error message:', err.message);

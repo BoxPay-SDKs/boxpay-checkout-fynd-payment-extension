@@ -50,6 +50,7 @@ const fdkExtension = setupFdk({
   callbacks: {
     auth: async req => {
       console.log(`Auth request received for company: ${req.query.company_id}`);
+      const application_id = req.query.application_id;
       return `${req.extension.base_url}/company/${req.query.company_id}/credentials?application_id=${application_id}`;
     },
     uninstall: async () => {
@@ -74,6 +75,16 @@ const fdkExtension = setupFdk({
         provider: 'rest'
       },
       'application/refund/refund_done': {
+        version: '1',
+        handler: createRefundHandler,
+        provider: 'rest'
+      },
+      'application/refund/refund_pending': {   // ← refund event
+        version: '1',
+        handler: createRefundHandler,
+        provider: 'rest'
+      },
+      'application/refund/refund_failed': {
         version: '1',
         handler: createRefundHandler,
         provider: 'rest'
