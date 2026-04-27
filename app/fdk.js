@@ -1,6 +1,5 @@
 const { setupFdk } = require('@gofynd/fdk-extension-javascript/express');
 const { SQLiteStorage } = require('@gofynd/fdk-extension-javascript/express/storage');
-const { version } = require('os');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
@@ -50,10 +49,7 @@ const fdkExtension = setupFdk({
   cluster: process.env.FP_API_DOMAIN,
   callbacks: {
     auth: async req => {
-      const application_id = req.query.application_id;
-      // OAuth callback redirect URL - this endpoint will be called after successful OAuth2 authorization
-      // and token exchange, redirecting to the credentials setup page
-      console.log(`request recievd ${req}`);
+      console.log(`Auth request received for company: ${req.query.company_id}`);
       return `${req.extension.base_url}/company/${req.query.company_id}/credentials?application_id=${application_id}`;
     },
     uninstall: async () => {
@@ -70,6 +66,7 @@ const fdkExtension = setupFdk({
     api_path: '/api/v1/fynd-webhooks',     // ← your webhook endpoint
     notification_email: 'your@email.com',  // ← your email
     subscribe_on_install: true,
+    subscribed_saleschannel: 'all',
     event_map: {
       'application/refund/refund_initiated': {   // ← refund event
         version: '1',

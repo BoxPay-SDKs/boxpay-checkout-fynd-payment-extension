@@ -14,7 +14,7 @@ const verifyPlatformChecksum = (req, res, next) => {
   );
 
   console.log(`Log: Verify platform checksum ${checksum}`)
-  console.log(`Log: Verify platform error thrown ${checksum} ==== ${req.headers.checksum}`)
+  console.log(`Log: Verify platform checking ${checksum} ==== ${req.headers.checksum}`)
 
 
   if (checksum !== req.headers.checksum) {

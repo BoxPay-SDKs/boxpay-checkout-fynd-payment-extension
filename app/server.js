@@ -40,17 +40,34 @@ app.get('/healthz', (req, res) => {
   console.log('LOG: Healthz page called', req);
   res.status(200).json({ status: 'ok' });
 });
-app.use(
-  bodyParser.json({
-    limit: '2mb',
-  })
-);
+app.use(bodyParser.json({
+  limit: '2mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf; // ← preserve raw body for signature verification
+  }
+}));
+
+app.post('/api/v1/fynd-webhooks', async (req, res) => {
+  console.log('LOG: Fynd webhook hit —', req.method, req.path);
+  console.log('LOG: Headers —', JSON.stringify(req.headers));
+  console.log('LOG: Body —', JSON.stringify(req.body));
+  try {
+    await fdkExtension.webhookRegistry.processWebhook(req);
+    console.log(`Log:Webhooks received in api/vi/fynd-webhooks ${JSON.stringify(req, null, 2)}`)
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error('LOG: Webhook error message:', err.message);
+    console.error('LOG: Webhook processing error:', err);
+    return res.status(400).json({ success: false });
+  }
+});
 
 app.use(bodyParser.urlencoded({ extended: false }));
 // Serve static files from the React dist directory
 app.use(serveStatic(STATIC_PATH, { index: false }));
 
-app.use(fdkExtension.fdkHandler);
+// ✅ Fix — registers /payment-ext/fp/auth
+app.use('/payment-ext', fdkExtension.fdkHandler);
 
 // Initialize payment service with existing handlers
 const paymentService = new PaymentService({
@@ -72,16 +89,6 @@ credsService.registerRoutes(app);
 // Payment Gateway webhook routes
 app.get('/api/v1/payment_callback/:company_id/:app_id', paymentCallbackHandler);
 app.post('/api/v1/webhook/payment/:company_id/:app_id', processPaymentWebhookHandler);
-app.post('/api/v1/fynd-webhooks', async (req, res) => {
-  try {
-    await fdkExtension.webhookRegistry.processWebhook(req);
-    console.log(`Log:Webhooks received in api/vi/fynd-webhooks ${JSON.stringify(req, null, 2)}`)
-    return res.status(200).json({ success: true });
-  } catch (err) {
-    console.error('LOG: Webhook processing error:', err);
-    return res.status(400).json({ success: false });
-  }
-});
 
 // Routes mounted on platformApiRoutes will have fdkSession middleware attached to the request object,
 // providing access to authenticated session data and platform context for secure API endpoints.
