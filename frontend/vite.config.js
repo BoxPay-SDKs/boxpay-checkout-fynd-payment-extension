@@ -68,5 +68,8 @@ export default defineConfig({
       '^/payment(/|(\\?.*)?$)': proxyOptions,
       '^/creds(/|(\\?.*)?$)': proxyOptions
     },
+    define: {
+      'import.meta.env.BASE_PATH': JSON.stringify(process.env.BASE_PATH || '')
+    }
   },
 });

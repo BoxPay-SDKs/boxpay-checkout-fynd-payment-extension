@@ -4,13 +4,15 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import App from './App';
 import StatusPage from './StatusPage';
 
+const BASE_PATH = import.meta.env.VITE_BASE_PATH || '';
+
 const router = createBrowserRouter([
   {
-    path: '/company/:company_id/credentials',
+    path: `${BASE_PATH}/company/:company_id/credentials`,
     element: <App />,
   },
   {
-    path: '/company/:company_id/status',
+    path: `${BASE_PATH}/company/:company_id/status`,
     element: <StatusPage />,
   },
 ]);

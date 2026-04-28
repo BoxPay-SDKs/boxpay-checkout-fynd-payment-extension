@@ -3,6 +3,9 @@ const { SQLiteStorage } = require('@gofynd/fdk-extension-javascript/express/stor
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
+
+const BASE_PATH = process.env.BASE_PATH
+
 /**
  * TODO: Development vs Production Database Configuration
  * 
@@ -60,11 +63,11 @@ const fdkExtension = setupFdk({
   },
   // Set debug to true to print all API calls and interactions with fdk-extension-javascript library
   // Useful for development and debugging. Set to false in production to reduce console noise
-  debug: false,
+  debug: true,
   storage: storage,
   access_mode: 'offline',
   webhook_config: {
-    api_path: '/api/v1/fynd-webhooks',     // ← your webhook endpoint
+    api_path: `${BASE_PATH}/api/v1/fynd-webhooks`,     // ← your webhook endpoint
     notification_email: 'your@email.com',  // ← your email
     subscribe_on_install: true,
     subscribed_saleschannel: 'all',

@@ -7,6 +7,7 @@ const { readFileSync } = require('fs');
 
 // Environment variables
 const NODE_ENV = process.env.NODE_ENV;
+const BASE_PATH = process.env.BASE_PATH
 
 const STATIC_PATH = NODE_ENV === 'production'
   ? path.join(process.cwd(), 'frontend', 'public', 'dist')
@@ -36,7 +37,7 @@ const app = express();
 
 app.use(cookieParser('ext.session'));
 
-app.get('/healthz', (req, res) => {
+app.get(`${BASE_PATH}/healthz`, (req, res) => {
   console.log('LOG: Healthz page called', req);
   res.status(200).json({ status: 'ok' });
 });
@@ -47,7 +48,7 @@ app.use(bodyParser.json({
   }
 }));
 
-app.post('/api/v1/fynd-webhooks', async (req, res) => {
+app.post(`${BASE_PATH}/api/v1/fynd-webhooks`, async (req, res) => {
   console.log('LOG: Fynd webhook hit —', req.method, req.path);
   console.log('LOG: Headers —', JSON.stringify(req.headers));
   console.log('LOG: Body —', JSON.stringify(req.body));
@@ -67,7 +68,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(serveStatic(STATIC_PATH, { index: false }));
 
 // ✅ Fix — registers /payment-ext/fp/auth
-app.use('/payment-ext', fdkExtension.fdkHandler);
+app.use(BASE_PATH || '/', fdkExtension.fdkHandler);
 
 // Initialize payment service with existing handlers
 const paymentService = new PaymentService({
@@ -87,8 +88,8 @@ paymentService.registerRoutes(app);
 credsService.registerRoutes(app);
 
 // Payment Gateway webhook routes
-app.get('/api/v1/payment_callback/:company_id/:app_id', paymentCallbackHandler);
-app.post('/api/v1/webhook/payment/:company_id/:app_id', processPaymentWebhookHandler);
+app.get(`${BASE_PATH}/api/v1/payment_callback/:company_id/:app_id`, paymentCallbackHandler);
+app.post(`${BASE_PATH}/api/v1/webhook/payment/:company_id/:app_id`, processPaymentWebhookHandler);
 
 // Routes mounted on platformApiRoutes will have fdkSession middleware attached to the request object,
 // providing access to authenticated session data and platform context for secure API endpoints.
@@ -96,12 +97,12 @@ const { platformApiRoutes } = fdkExtension;
 
 // These protected routes will be called by the extension UI
 platformApiRoutes.use('/v1', extensionCredsRouter);
-app.use('/protected', platformApiRoutes);
+app.use(`${BASE_PATH}/protected`, platformApiRoutes);
 
 app.use(errorHandler);
 
 // Catch-all route to serve the React app
-app.get('*', (req, res) => {
+app.get(`${BASE_PATH}/*`, (req, res) => {
   return res
     .status(200)
     .set("Content-Type", "text/html")
