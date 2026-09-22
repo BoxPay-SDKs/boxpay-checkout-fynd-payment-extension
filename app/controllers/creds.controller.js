@@ -5,30 +5,10 @@ const CredsModel = require('../models/creds.model');
 const EXTENSION_API_SECRET = process.env.EXTENSION_API_SECRET;
 
 const CREDENTIAL_FIELDS = [
-  {
-    slug: 'api_key',
-    name: 'API Key',
-    required: true,
-    display: true,
-    placeholder: 'Enter your BoxPay API Key',
-    description: 'Your secret API key from the BoxPay dashboard',
-  },
-  {
-    slug: 'legal_entity',
-    name: 'Legal Entity',
-    required: true,
-    display: true,
-    placeholder: 'e.g. boxpay-india',
-    description: 'Legal entity identifier provided by BoxPay',
-  },
-  {
-    slug: 'merchant_id',
-    name: 'Merchant ID',
-    required: true,
-    display: true,
-    placeholder: 'Enter your BoxPay Merchant ID',
-    description: 'Your unique merchant identifier from the BoxPay dashboard',
-  },
+  { slug: 'api_key', name: 'API Key', required: true, display: true, placeholder: 'Enter your BoxPay API Key', description: 'Your secret API key from the BoxPay dashboard' },
+  { slug: 'legal_entity', name: 'Legal Entity', required: true, display: true, placeholder: 'e.g. boxpay-india', description: 'Legal entity identifier provided by BoxPay' },
+  { slug: 'merchant_id', name: 'Merchant ID', required: true, display: true, placeholder: 'Enter your BoxPay Merchant ID', description: 'Your unique merchant identifier from the BoxPay dashboard' },
+  { slug: 'mode', name: 'Environment', required: false, display: true, defaultValue: 'prod', description: 'prod or test' },
 ];
 
 /**
@@ -124,17 +104,16 @@ exports.getSecretsHandler = async (req, res) => {
         success: true,
         is_active: false,
         app_id: appId,
-        data: CREDENTIAL_FIELDS,
+        data: CREDENTIAL_FIELDS.map(f => ({ ...f, value: f.defaultValue || '' })),
       });
     }
-
-    // Decrypt the secrets and construct the response
+    
     let secrets = EncryptHelper.decrypt(EXTENSION_API_SECRET, encryptedSecret);
     secrets = JSON.parse(secrets);
-
+    
     const creds = CREDENTIAL_FIELDS.map(field => ({
       ...field,
-      value: secrets[field.slug],
+      value: secrets[field.slug] ?? field.defaultValue ?? '',
     }));
 
     const responseData = {
