@@ -32,6 +32,15 @@ const CREDENTIAL_FIELDS = [
     placeholder: 'Enter your BoxPay Merchant ID',
     description: 'Your unique merchant identifier from the BoxPay dashboard',
   },
+  {
+    slug: 'mode',
+    name: 'Environment',
+    required: false,
+    display: true,
+    type: 'toggle',
+    defaultValue: 'prod',
+    description: 'Switch between Production and Test BoxPay environment',
+  },
 ];
 
 // Main App Component
@@ -119,7 +128,7 @@ function App() {
           const savedParam = savedData.find((s) => s.slug === param.slug);
           return {
             ...param,
-            value: savedParam?.value || ''
+            value: savedParam?.value || param.defaultValue || ''
           };
         });
 
@@ -138,7 +147,7 @@ function App() {
         setFormData(
           CREDENTIAL_FIELDS.reduce((acc, param) => ({
             ...acc,
-            [param.slug]: ''
+            [param.slug]: param.defaultValue || ''
           }), {})
         );
         setError(null); // Don't block the form from showing
@@ -149,6 +158,13 @@ function App() {
 
     fetchCredentials();
   }, []);
+
+  const handleModeToggle = () => {
+    setFormData(prev => ({
+      ...prev,
+      mode: prev.mode === 'test' ? 'prod' : 'test'
+    }));
+  };
 
   const handleInputChange = (e) => {
     const { id, value } = e.target;
@@ -240,28 +256,44 @@ function App() {
                 </span>
               )}
             </label>
-            <div className="input-group">
-              <input
-                id={param.slug}
-                required={param.required}
-                name={param.slug}
-                value={formData[param.slug] || ''}
-                type={isPasswordVisible[param.slug] ? 'text' : 'password'}
-                onChange={handleInputChange}
-                disabled={isSubmitting}
-                placeholder={param.placeholder || ''}
-              />
-              <button
-                type="button"
-                className="toggle-password"
-                onClick={() => togglePasswordVisibility(param.slug)}
-                disabled={isSubmitting}
-              >
-                {isPasswordVisible[param.slug]
-                  ? <FaRegEye size={20} />
-                  : <FaRegEyeSlash size={20} />}
-              </button>
-            </div>
+  
+            {param.slug === 'mode' ? (
+              <div className="mode-toggle-group">
+                <span className={`mode-label ${formData.mode !== 'test' ? 'active' : ''}`}>Prod</span>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    id="mode"
+                    checked={formData.mode === 'test'}
+                    onChange={handleModeToggle}
+                    disabled={isSubmitting}
+                  />
+                  <span className="slider" />
+                </label>
+                <span className={`mode-label ${formData.mode === 'test' ? 'active' : ''}`}>Test</span>
+              </div>
+            ) : (
+              <div className="input-group">
+                <input
+                  id={param.slug}
+                  required={param.required}
+                  name={param.slug}
+                  value={formData[param.slug] || ''}
+                  type={isPasswordVisible[param.slug] ? 'text' : 'password'}
+                  onChange={handleInputChange}
+                  disabled={isSubmitting}
+                  placeholder={param.placeholder || ''}
+                />
+                <button
+                  type="button"
+                  className="toggle-password"
+                  onClick={() => togglePasswordVisibility(param.slug)}
+                  disabled={isSubmitting}
+                >
+                  {isPasswordVisible[param.slug] ? <FaRegEye size={20} /> : <FaRegEyeSlash size={20} />}
+                </button>
+              </div>
+            )}
           </div>
         )
       ))}

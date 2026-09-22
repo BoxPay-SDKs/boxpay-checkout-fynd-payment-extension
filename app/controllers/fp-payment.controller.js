@@ -7,11 +7,11 @@ const EncryptHelper = require('../utils/encrypt.util');
 const EXTENSION_BASE_URL = process.env.EXTENSION_BASE_URL;
 const EXTENSION_API_SECRET = process.env.EXTENSION_API_SECRET;
 
-// BoxPay API base URL (test environment)
-const BOXPAY_BASE_URL = 'https://test-apis.boxpay.tech/v0';
-
-// Payment mode constant
-const PAYMENT_MODE = 'test';
+// BoxPay API base URLs per environment
+const BOXPAY_URLS = {
+  prod: 'https://apis.boxpay.in/v0',
+  test: 'https://test-apis.boxpay.tech/v0',
+};
 
 // Payment status constants - sent in response to Fynd core API call
 const paymentStatus = {
@@ -33,7 +33,7 @@ const refundStatus = {
 
 /**
  * Helper — fetch and decrypt merchant BoxPay credentials from SQLite
- * Returns { api_key, legal_entity, merchant_id }
+ * Returns { api_key, legal_entity, merchant_id, mode }
  */
 const getMerchantCreds = async (appId, companyId) => {
   const encryptedSecret = await CredsModel.getCreds(appId, companyId);
@@ -43,8 +43,17 @@ const getMerchantCreds = async (appId, companyId) => {
     );
   }
   const decrypted = EncryptHelper.decrypt(EXTENSION_API_SECRET, encryptedSecret);
-  return JSON.parse(decrypted);
+  const creds = JSON.parse(decrypted);
+  return {
+    ...creds,
+    mode: creds.mode === 'test' ? 'test' : 'prod', // default to prod if missing/invalid
+  };
 };
+
+/**
+ * Helper — resolve BoxPay base URL from merchant mode
+ */
+const getBoxpayBaseUrl = (mode) => BOXPAY_URLS[mode] || BOXPAY_URLS.prod;
 
 /**
  * Map BoxPay payment status → Fynd payment status
@@ -133,7 +142,8 @@ exports.initiatePaymentToPGHandler = async (req, res, next) => {
     await PaymentModel.storePayment(gid, requestPayload);
 
     // Fetch merchant's BoxPay credentials from SQLite
-    const { api_key, legal_entity, merchant_id } = await getMerchantCreds(app_id, company_id);
+    const { api_key, legal_entity, merchant_id, mode } = await getMerchantCreds(app_id, company_id);
+    const boxpayBaseUrl = getBoxpayBaseUrl(mode);
 
     // Split customer full name into first and last name
     const nameParts = (customer_name || '').trim().split(' ');
@@ -189,13 +199,13 @@ exports.initiatePaymentToPGHandler = async (req, res, next) => {
       frontendReturnUrl: extensionSuccessUrl,
     };
 
-    console.log('LOG: Calling BoxPay session API for merchant_id:', merchant_id);
+    console.log('LOG: Calling BoxPay session API for merchant_id:', merchant_id, 'mode:', mode);
     console.log('LOG: BoxPay payload:', JSON.stringify(boxpayPayload, null, 2));
 
     // Call BoxPay session creation API
-    // POST https://test-apis.boxpay.tech/v0/merchants/:merchantId/sessions
+    // POST {boxpayBaseUrl}/merchants/:merchantId/sessions
     const boxpayResponse = await axios.post(
-      `${BOXPAY_BASE_URL}/merchants/${merchant_id}/sessions`,
+      `${boxpayBaseUrl}/merchants/${merchant_id}/sessions`,
       boxpayPayload,
       {
         headers: {
@@ -270,13 +280,14 @@ exports.getPaymentDetailsHandler = async (req, res, next) => {
     const companyId = storedPayment?.company_id;
 
     // Fetch merchant's BoxPay credentials
-    const { api_key, merchant_id } = await getMerchantCreds(appId, companyId);
+    const { api_key, merchant_id, mode } = await getMerchantCreds(appId, companyId);
+    const boxpayBaseUrl = getBoxpayBaseUrl(mode);
 
-    console.log('LOG: Fetching payment status from BoxPay for gid:', gid);
+    console.log('LOG: Fetching payment status from BoxPay for gid:', gid, 'mode:', mode);
 
-    // GET https://test-apis.boxpay.tech/v0/merchants/:merchantId/sessions/:token
+    // GET {boxpayBaseUrl}/merchants/:merchantId/sessions/:token
     const boxpayResponse = await axios.get(
-      `${BOXPAY_BASE_URL}/merchants/${merchant_id}/sessions/${gid}`,
+      `${boxpayBaseUrl}/merchants/${merchant_id}/sessions/${gid}`,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -318,7 +329,7 @@ exports.getPaymentDetailsHandler = async (req, res, next) => {
           amount: amountInPaise,
           currency,
           payment_id: transactionId,
-          mode: PAYMENT_MODE,
+          mode: mode === 'test' ? 'test' : 'live', // reflects merchant's BoxPay environment toggle
           success_url: storedPayment?.success_url || '',
           cancel_url: storedPayment?.cancel_url || '',
           amount_captured: status === paymentStatus.COMPLETE ? amountInPaise : 0,
@@ -362,13 +373,14 @@ exports.createRefundHandler = async (req, res, next) => {
     const companyId = storedPayment?.company_id;
 
     // Fetch merchant's BoxPay credentials
-    const { api_key, merchant_id } = await getMerchantCreds(appId, companyId);
+    const { api_key, merchant_id, mode } = await getMerchantCreds(appId, companyId);
+    const boxpayBaseUrl = getBoxpayBaseUrl(mode);
 
-    console.log('LOG: Initiating refund with BoxPay for gid:', gid);
+    console.log('LOG: Initiating refund with BoxPay for gid:', gid, 'mode:', mode);
 
-    // POST https://test-apis.boxpay.tech/v0/merchants/:merchantId/sessions/:token/refunds
+    // POST {boxpayBaseUrl}/merchants/:merchantId/sessions/:token/refunds
     // const boxpayResponse = await axios.post(
-    //   `${BOXPAY_BASE_URL}/merchants/${merchant_id}/sessions/${gid}/refunds`,
+    //   `${boxpayBaseUrl}/merchants/${merchant_id}/sessions/${gid}/refunds`,
     //   {
     //     amount: String(amount),
     //     currencyCode: currency || 'INR',
@@ -411,7 +423,7 @@ exports.createRefundHandler = async (req, res, next) => {
     // };
 
     // console.log('LOG: Response for create refund', responseData);
-    return res.status(404).json(responseData);
+    return res.status(404).json({ success: false, message: 'Refund flow not implemented yet' });
 
   } catch (error) {
     console.error('LOG: Error in createRefundHandler:', error?.response?.data || error.message);
@@ -440,13 +452,14 @@ exports.getRefundDetailsHandler = async (req, res, next) => {
     const companyId = storedPayment?.company_id;
 
     // Fetch merchant's BoxPay credentials
-    const { api_key, merchant_id } = await getMerchantCreds(appId, companyId);
+    const { api_key, merchant_id, mode } = await getMerchantCreds(appId, companyId);
+    const boxpayBaseUrl = getBoxpayBaseUrl(mode);
 
-    console.log('LOG: Fetching refund status from BoxPay for gid:', gid);
+    console.log('LOG: Fetching refund status from BoxPay for gid:', gid, 'mode:', mode);
 
-    // GET https://test-apis.boxpay.tech/v0/merchants/:merchantId/sessions/:token/refunds/:refundId
+    // GET {boxpayBaseUrl}/merchants/:merchantId/sessions/:token/refunds/:refundId
     const boxpayResponse = await axios.get(
-      `${BOXPAY_BASE_URL}/merchants/${merchant_id}/sessions/${gid}/refunds/${refundPayload?.refund_id}`,
+      `${boxpayBaseUrl}/merchants/${merchant_id}/sessions/${gid}/refunds/${refundPayload?.refund_id}`,
       {
         headers: {
           'Content-Type': 'application/json',
