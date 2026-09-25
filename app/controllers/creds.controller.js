@@ -145,16 +145,17 @@ exports.getSecretsHandler = async (req, res) => {
 exports.checkPaymentReadinessHandler = async (req, res) => {
   try {
     const { app_id: appId } = req.params;
+    const { company_id: companyId } = req.fdkSession;
 
     // Validate required parameters
-    if (!appId) {
+    if (!appId || !companyId) {
       return res
         .status(400)
         .json({ success: false, message: 'Missing app_id' });
     }
 
     // Check if secrets exist in SQLite
-    const hasCreds = await CredsModel.checkCredsExist(appId);
+    const hasCreds = await CredsModel.checkCredsExist(appId, companyId);
 
     const responseData = {
       success: true,
