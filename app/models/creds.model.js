@@ -11,7 +11,7 @@ const CredsModel = {
         throw new Error('FDK storage is not initialized');
       }
 
-      const key = `creds:${appId}`;
+      const key = `creds:${companyId}:${appId}`;
       await fdkExtension.extension.storage.set(key, encryptedSecret);
       return true;
     } catch (error) {
@@ -21,7 +21,7 @@ const CredsModel = {
   },
 
   // Get encrypted credentials
-  getCreds: async (appId) => {
+  getCreds: async (appId, companyId) => {
     try {
       const { fdkExtension } = require('../fdk');
       if (!fdkExtension) {
@@ -32,7 +32,7 @@ const CredsModel = {
         throw new Error('FDK storage is not initialized');
       }
 
-      const key = `creds:${appId}`;
+      const key = `creds:${companyId}:${appId}`;
       const credsData = await fdkExtension.extension.storage.get(key);
       return credsData;
     } catch (error) {
@@ -42,7 +42,7 @@ const CredsModel = {
   },
 
   // Check if credentials exist
-  checkCredsExist: async (appId) => {
+  checkCredsExist: async (appId, companyId) => {
     try {
       const { fdkExtension } = require('../fdk');
       if (!fdkExtension) {
@@ -53,7 +53,7 @@ const CredsModel = {
         throw new Error('FDK storage is not initialized');
       }
 
-      const key = `creds:${appId}`;
+      const key = `creds:${companyId}:${appId}`;
       const credsData = await fdkExtension.extension.storage.get(key);
       
       return !!credsData;
