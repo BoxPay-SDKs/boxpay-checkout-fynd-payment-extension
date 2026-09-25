@@ -145,7 +145,7 @@ exports.getSecretsHandler = async (req, res) => {
 exports.checkPaymentReadinessHandler = async (req, res) => {
   try {
     const { app_id: appId } = req.params;
-    const { company_id: companyId } = req.fdkSession;
+    const companyId = req.query.company_id;
 
     // Validate required parameters
     if (!appId || !companyId) {
