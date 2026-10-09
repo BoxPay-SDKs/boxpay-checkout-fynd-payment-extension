@@ -58,7 +58,6 @@ function App() {
   const getApplication = () => {
     const appId = searchParams.get('application_id');
     if (!appId) {
-      console.error('Application ID is missing from URL');
       return null;
     }
     return appId;
@@ -66,18 +65,10 @@ function App() {
 
   const getCompanyId = () => {
     if (!companyId) {
-      console.error('Company ID is missing from URL');
       return null;
     }
     return companyId;
   };
-
-  useEffect(() => {
-    console.log('=== DEBUG URL PARAMS ===');
-    console.log('All params:', Object.fromEntries(searchParams.entries()));
-    console.log('Full URL:', window.location.href);
-    console.log('Cookies:', document.cookie);
-  }, []);
 
   const getCommonHeaders = () => {
     const appId = getApplication();
@@ -109,7 +100,6 @@ function App() {
         }
 
         const url = getCredentialsUrl(appId, companyId);
-        console.log('Fetching credentials from:', url);
 
         const response = await fetch(url, {
           headers: getCommonHeaders(),
@@ -120,7 +110,6 @@ function App() {
         }
 
         const data = await response.json();
-        console.log('Received data:', data);
 
         // Merge backend saved values into the BoxPay credential params
         const savedData = data?.data || [];
@@ -140,7 +129,6 @@ function App() {
           }), {})
         );
       } catch (error) {
-        console.error('Error fetching credentials:', error);
 
         // Fallback — still show the form with empty fields
         setParams(CREDENTIAL_FIELDS);
@@ -221,7 +209,6 @@ function App() {
         throw new Error(data.message || 'Failed to save credentials');
       }
     } catch (error) {
-      console.error('Error submitting credentials:', error);
       setError(error.message);
     } finally {
       setIsSubmitting(false);

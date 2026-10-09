@@ -26,14 +26,7 @@ const BASE_PATH = process.env.BASE_PATH
 
 // ✅ Lazy load INSIDE the handler — avoids circular dependency
 async function createRefundHandler(eventName, payload, companyId, applicationId) {
-  console.log('[REFUND WEBHOOK RECEIVED]', {
-    eventName,
-    companyId,
-    applicationId,
-    merchant_refund_id: payload?.payload?.merchant_refund_id,
-    order_id: payload?.payload?.order_id,
-    payment_status: payload?.payload?.payment_status
-  });
+  
 
   // TODO: your business logic
 }
@@ -52,7 +45,6 @@ const fdkExtension = setupFdk({
   cluster: process.env.FP_API_DOMAIN,
   callbacks: {
     auth: async req => {
-      console.log(`Auth request received for company: ${req.query.company_id}`);
       const application_id = req.query.application_id;
       return `${req.extension.base_url}/company/${req.query.company_id}/credentials?application_id=${application_id}`;
     },

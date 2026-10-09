@@ -24,7 +24,6 @@ const PaymentModel = {
       await fdkExtension.extension.storage.set(`payment:${gid}`, JSON.stringify(payload));
       return true;
     } catch (error) {
-      console.error('Error storing payment:', error);
       throw error;
     }
   },
@@ -43,7 +42,6 @@ const PaymentModel = {
       const paymentData = await fdkExtension.extension.storage.get(`payment:${gid}`);
       return paymentData ? JSON.parse(paymentData) : null;
     } catch (error) {
-      console.error('Error getting payment:', error);
       throw error;
     }
   },
@@ -58,7 +56,6 @@ const PaymentModel = {
       await fdkExtension.extension.storage.set(`refund:${gid}`, JSON.stringify(payload));
       return true;
     } catch (error) {
-      console.error('Error storing refund:', error);
       throw error;
     }
   },
@@ -73,7 +70,6 @@ const PaymentModel = {
       const refundData = await fdkExtension.extension.storage.get(`refund:${gid}`);
       return refundData ? JSON.parse(refundData) : null;
     } catch (error) {
-      console.error('Error getting refund:', error);
       throw error;
     }
   }

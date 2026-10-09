@@ -44,7 +44,6 @@ function StatusPage() {
       }
       return data;
     } catch (error) {
-      console.error('Error calling extension webhook:', error);
       setIsLoading(false);
       throw error;
     }
@@ -53,20 +52,14 @@ function StatusPage() {
   const handleSuccess = async () => {
     try {
       const webhookResponse = await callExtensionWebhook('PAYMENT_COMPLETE');
-      console.log('Extension Webhook Response:', webhookResponse);
-      console.log('Payment status updated to success');
     } catch (error) {
-      console.error('Error in payment process:', error);
     }
   };
 
   const handleFailure = async () => {
     try {
       const webhookResponse = await callExtensionWebhook('PAYMENT_FAILED');
-      console.log('Extension Webhook Response:', webhookResponse);
-      console.log('Payment status updated to failure');
     } catch (error) {
-      console.error('Error in payment process:', error);
     }
   };
 

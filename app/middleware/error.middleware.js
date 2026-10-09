@@ -6,15 +6,6 @@
 const errorHandler = (err, req, res, next) => {
   const status = err.status || 500;
 
-  // Always log the full error server-side
-  console.error('[ERROR]', {
-    status,
-    message: err.message,
-    path: req.path,
-    method: req.method,
-    stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
-  });
-
   // In production, never expose internal error details to the client
   const clientMessage = process.env.NODE_ENV === 'production'
     ? 'An unexpected error occurred. Please try again.'

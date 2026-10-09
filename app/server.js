@@ -65,7 +65,6 @@ app.use(cors({
 app.use(cookieParser('ext.session'));
 
 app.get(`${BASE_PATH}/healthz`, (req, res) => {
-  console.log('LOG: Healthz page called', req);
   res.status(200).json({ status: 'ok' });
 });
 app.use(bodyParser.json({
@@ -76,16 +75,10 @@ app.use(bodyParser.json({
 }));
 
 app.post(`${BASE_PATH}/api/v1/fynd-webhooks`, async (req, res) => {
-  console.log('LOG: Fynd webhook hit —', req.method, req.path);
-  console.log('LOG: Headers —', JSON.stringify(req.headers));
-  console.log('LOG: Body —', JSON.stringify(req.body));
   try {
     await fdkExtension.webhookRegistry.processWebhook(req);
-    console.log(`Log:Webhooks received in api/vi/fynd-webhooks ${JSON.stringify(req.body, null, 2)}`)
     return res.status(200).json({ success: true });
   } catch (err) {
-    console.error('LOG: Webhook error message:', err.message);
-    console.error('LOG: Webhook processing error:', err);
     return res.status(400).json({ success: false });
   }
 });

@@ -71,7 +71,6 @@ exports.createSecretsHandler = async (req, res) => {
 
     res.status(200).json(response);
   } catch (error) {
-    console.error('Error in createSecretsHandler:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -124,7 +123,6 @@ exports.getSecretsHandler = async (req, res) => {
     };
     return res.status(200).json(responseData);
   } catch (error) {
-    console.error('Error in getSecretsHandler:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -167,7 +165,6 @@ exports.checkPaymentReadinessHandler = async (req, res) => {
 
     return res.status(200).json(responseData);
   } catch (error) {
-    console.error('Error in checkPaymentReadinessHandler:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
