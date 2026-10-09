@@ -4,10 +4,13 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const serveStatic = require("serve-static");
 const { readFileSync } = require('fs');
+const helmet = require('helmet');
+const cors = require('cors');
 
 // Environment variables
 const NODE_ENV = process.env.NODE_ENV;
-const BASE_PATH = process.env.BASE_PATH
+const BASE_PATH = process.env.BASE_PATH;
+const EXTENSION_BASE_URL = process.env.EXTENSION_BASE_URL;
 
 const STATIC_PATH = NODE_ENV === 'production'
   ? path.join(process.cwd(), 'frontend', 'public', 'dist')
@@ -35,10 +38,33 @@ const {
 
 const app = express();
 
+// F-03: Security headers via Helmet
+app.use(helmet());
+
+// F-03: CORS — allow only Fynd origins and the extension's own URL
+const allowedOrigins = [
+  /\.fynd\.com$/,
+  /\.fyndx\d+\.de$/,
+];
+if (EXTENSION_BASE_URL) allowedOrigins.push(EXTENSION_BASE_URL);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (server-to-server, curl, Postman)
+    if (!origin) return callback(null, true);
+    const allowed = allowedOrigins.some(pattern =>
+      typeof pattern === 'string' ? pattern === origin : pattern.test(origin)
+    );
+    allowed
+      ? callback(null, true)
+      : callback(new Error(`CORS: origin ${origin} not allowed`));
+  },
+  credentials: true,
+}));
+
 app.use(cookieParser('ext.session'));
 
 app.get(`${BASE_PATH}/healthz`, (req, res) => {
-  console.log('LOG: Healthz page called', req);
   res.status(200).json({ status: 'ok' });
 });
 app.use(bodyParser.json({
@@ -49,16 +75,10 @@ app.use(bodyParser.json({
 }));
 
 app.post(`${BASE_PATH}/api/v1/fynd-webhooks`, async (req, res) => {
-  console.log('LOG: Fynd webhook hit —', req.method, req.path);
-  console.log('LOG: Headers —', JSON.stringify(req.headers));
-  console.log('LOG: Body —', JSON.stringify(req.body));
   try {
     await fdkExtension.webhookRegistry.processWebhook(req);
-    console.log(`Log:Webhooks received in api/vi/fynd-webhooks ${JSON.stringify(req.body, null, 2)}`)
     return res.status(200).json({ success: true });
   } catch (err) {
-    console.error('LOG: Webhook error message:', err.message);
-    console.error('LOG: Webhook processing error:', err);
     return res.status(400).json({ success: false });
   }
 });

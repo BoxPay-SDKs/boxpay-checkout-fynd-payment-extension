@@ -15,7 +15,6 @@ const CredsModel = {
       await fdkExtension.extension.storage.set(key, encryptedSecret);
       return true;
     } catch (error) {
-      console.error('Error storing credentials:', error);
       throw error;
     }
   },
@@ -36,7 +35,6 @@ const CredsModel = {
       const credsData = await fdkExtension.extension.storage.get(key);
       return credsData;
     } catch (error) {
-      console.error('Error getting credentials:', error);
       throw error;
     }
   },
@@ -58,7 +56,6 @@ const CredsModel = {
       
       return !!credsData;
     } catch (error) {
-      console.error('Error checking credentials:', error);
       throw error;
     }
   }

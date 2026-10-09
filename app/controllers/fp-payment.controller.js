@@ -121,7 +121,6 @@ const mapBoxPayRefundStatusToFynd = (boxpayStatus = '') => {
 exports.initiatePaymentToPGHandler = async (req, res, next) => {
   try {
     const requestPayload = req.body;
-    console.log('LOG: Payload received from Fynd platform', requestPayload);
 
     const {
       gid,
@@ -199,9 +198,6 @@ exports.initiatePaymentToPGHandler = async (req, res, next) => {
       frontendReturnUrl: extensionSuccessUrl,
     };
 
-    console.log('LOG: Calling BoxPay session API for merchant_id:', merchant_id, 'mode:', mode);
-    console.log('LOG: BoxPay payload:', JSON.stringify(boxpayPayload, null, 2));
-
     // Call BoxPay session creation API
     // POST {boxpayBaseUrl}/merchants/:merchantId/sessions
     const boxpayResponse = await axios.post(
@@ -217,7 +213,6 @@ exports.initiatePaymentToPGHandler = async (req, res, next) => {
     );
 
     const boxpayData = boxpayResponse.data;
-    console.log('LOG: BoxPay session API response:', JSON.stringify(boxpayData, null, 2));
 
     // Extract checkout URL from BoxPay response
     const checkoutUrl =
@@ -241,11 +236,9 @@ exports.initiatePaymentToPGHandler = async (req, res, next) => {
       gid,
     };
 
-    console.log('LOG: Response sent to Fynd platform', platformResponse);
     return res.status(200).json(platformResponse);
 
   } catch (error) {
-    console.error('LOG: Error in initiatePaymentToPGHandler:', error?.response?.data || error.message);
 
     if (error.response?.data) {
       return res.status(400).json({
@@ -268,7 +261,6 @@ exports.initiatePaymentToPGHandler = async (req, res, next) => {
 exports.getPaymentDetailsHandler = async (req, res, next) => {
   try {
     const { gid } = req.params;
-    console.log('LOG: Request for get payment details', { gid });
 
     if (!gid) {
       throw new Error('Payment session ID (gid) is required');
@@ -283,7 +275,6 @@ exports.getPaymentDetailsHandler = async (req, res, next) => {
     const { api_key, merchant_id, mode } = await getMerchantCreds(appId, companyId);
     const boxpayBaseUrl = getBoxpayBaseUrl(mode);
 
-    console.log('LOG: Fetching payment status from BoxPay for gid:', gid, 'mode:', mode);
 
     // GET {boxpayBaseUrl}/merchants/:merchantId/sessions/:token
     const boxpayResponse = await axios.get(
@@ -298,7 +289,6 @@ exports.getPaymentDetailsHandler = async (req, res, next) => {
     );
 
     const boxpayData = boxpayResponse.data;
-    console.log('LOG: BoxPay payment status response:', JSON.stringify(boxpayData, null, 2));
 
     // Map BoxPay status → Fynd status
     const rawStatus = boxpayData?.status || boxpayData?.data?.status || 'PENDING';
@@ -342,11 +332,9 @@ exports.getPaymentDetailsHandler = async (req, res, next) => {
       ],
     };
 
-    console.log('LOG: Response for get Payment Details', responseData);
     return res.status(200).json(responseData);
 
   } catch (error) {
-    console.error('LOG: Error in getPaymentDetailsHandler:', error?.response?.data || error.message);
     next(error);
   }
 };
@@ -358,7 +346,7 @@ exports.getPaymentDetailsHandler = async (req, res, next) => {
 exports.createRefundHandler = async (req, res, next) => {
   try {
     const requestPayload = req.body;
-    console.log('LOG: Request body for create refund', requestPayload);
+    // F-06: Log only non-PII identifiers for refund request
 
     const {
       gid,
@@ -376,7 +364,6 @@ exports.createRefundHandler = async (req, res, next) => {
     const { api_key, merchant_id, mode } = await getMerchantCreds(appId, companyId);
     const boxpayBaseUrl = getBoxpayBaseUrl(mode);
 
-    console.log('LOG: Initiating refund with BoxPay for gid:', gid, 'mode:', mode);
 
     // POST {boxpayBaseUrl}/merchants/:merchantId/sessions/:token/refunds
     // const boxpayResponse = await axios.post(
@@ -426,7 +413,6 @@ exports.createRefundHandler = async (req, res, next) => {
     return res.status(404).json({ success: false, message: 'Refund flow not implemented yet' });
 
   } catch (error) {
-    console.error('LOG: Error in createRefundHandler:', error?.response?.data || error.message);
     next(error);
   }
 };
@@ -438,7 +424,6 @@ exports.createRefundHandler = async (req, res, next) => {
 exports.getRefundDetailsHandler = async (req, res, next) => {
   try {
     const { gid } = req.params;
-    console.log('LOG: Request for get refund details', { gid });
 
     if (!gid) {
       throw new Error('Refund session ID (gid) is required');
@@ -455,7 +440,6 @@ exports.getRefundDetailsHandler = async (req, res, next) => {
     const { api_key, merchant_id, mode } = await getMerchantCreds(appId, companyId);
     const boxpayBaseUrl = getBoxpayBaseUrl(mode);
 
-    console.log('LOG: Fetching refund status from BoxPay for gid:', gid, 'mode:', mode);
 
     // GET {boxpayBaseUrl}/merchants/:merchantId/sessions/:token/refunds/:refundId
     const boxpayResponse = await axios.get(
@@ -470,7 +454,6 @@ exports.getRefundDetailsHandler = async (req, res, next) => {
     );
 
     const boxpayData = boxpayResponse.data;
-    console.log('LOG: BoxPay refund status response:', JSON.stringify(boxpayData, null, 2));
 
     // Map BoxPay refund status → Fynd refund status
     const rawStatus = boxpayData?.status || 'PENDING';
@@ -498,11 +481,9 @@ exports.getRefundDetailsHandler = async (req, res, next) => {
       ],
     };
 
-    console.log('LOG: Response for get Refund Details', responseData);
     return res.status(200).json(responseData);
 
   } catch (error) {
-    console.error('LOG: Error in getRefundDetailsHandler:', error?.response?.data || error.message);
     next(error);
   }
 };
