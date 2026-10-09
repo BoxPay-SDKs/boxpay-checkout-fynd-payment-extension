@@ -4,10 +4,13 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const serveStatic = require("serve-static");
 const { readFileSync } = require('fs');
+const helmet = require('helmet');
+const cors = require('cors');
 
 // Environment variables
 const NODE_ENV = process.env.NODE_ENV;
-const BASE_PATH = process.env.BASE_PATH
+const BASE_PATH = process.env.BASE_PATH;
+const EXTENSION_BASE_URL = process.env.EXTENSION_BASE_URL;
 
 const STATIC_PATH = NODE_ENV === 'production'
   ? path.join(process.cwd(), 'frontend', 'public', 'dist')
@@ -34,6 +37,30 @@ const {
 } = require('./controllers/creds.controller');
 
 const app = express();
+
+// F-03: Security headers via Helmet
+app.use(helmet());
+
+// F-03: CORS — allow only Fynd origins and the extension's own URL
+const allowedOrigins = [
+  /\.fynd\.com$/,
+  /\.fyndx\d+\.de$/,
+];
+if (EXTENSION_BASE_URL) allowedOrigins.push(EXTENSION_BASE_URL);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (server-to-server, curl, Postman)
+    if (!origin) return callback(null, true);
+    const allowed = allowedOrigins.some(pattern =>
+      typeof pattern === 'string' ? pattern === origin : pattern.test(origin)
+    );
+    allowed
+      ? callback(null, true)
+      : callback(new Error(`CORS: origin ${origin} not allowed`));
+  },
+  credentials: true,
+}));
 
 app.use(cookieParser('ext.session'));
 

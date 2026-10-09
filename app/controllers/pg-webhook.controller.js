@@ -7,14 +7,25 @@ const EncryptHelper = require('../utils/encrypt.util');
 
 // Environment variables
 const EXTENSION_API_SECRET = process.env.EXTENSION_API_SECRET;
-const BOXPAY_BASE_URL = 'https://test-apis.boxpay.tech/v0';
+
+// BoxPay API base URLs per environment — mirrors fp-payment.controller.js
+const BOXPAY_URLS = {
+  prod: 'https://apis.boxpay.in/v0',
+  test: 'https://test-apis.boxpay.tech/v0',
+};
 
 const getMerchantCreds = async (appId, companyId) => {
   const encryptedSecret = await CredsModel.getCreds(appId, companyId);
   if (!encryptedSecret) throw new Error('Credentials not found');
   const decrypted = EncryptHelper.decrypt(EXTENSION_API_SECRET, encryptedSecret);
-  return JSON.parse(decrypted);
+  const creds = JSON.parse(decrypted);
+  return {
+    ...creds,
+    mode: creds.mode === 'test' ? 'test' : 'prod',
+  };
 };
+
+const getBoxpayBaseUrl = (mode) => BOXPAY_URLS[mode] || BOXPAY_URLS.prod;
 
 /**
  * @desc Handle redirect from BoxPay after payment
@@ -25,20 +36,24 @@ const getMerchantCreds = async (appId, companyId) => {
  *   BACK    → ?gid=xxx&status=back (with or without extra params)
  */
 exports.paymentCallbackHandler = async (req, res) => {
+  // F-09 fix: declare cancel_url with safe default before any async work
+  let cancel_url = '/';
+
   try {
     const { company_id: companyId, app_id: appId } = req.params;
     const { gid, status, redirectionResult } = req.query;
 
-    console.log('LOG: Payment callback received', { gid, status, redirectionResult });
+    console.log('LOG: Payment callback received', { gid, status });
 
     // Fetch stored payment data (has success_url and cancel_url)
     const storedPayment = await PaymentModel.getPayment(gid);
     if (!storedPayment) {
-      console.error('Payment not found for gid:', gid);
+      console.error('LOG: Payment not found for gid:', gid);
       return res.redirect('/payment-error');
     }
 
-    const { success_url, cancel_url } = storedPayment;
+    const { success_url } = storedPayment;
+    cancel_url = storedPayment.cancel_url || cancel_url;
 
     // If customer clicked back button → redirect to cancel_url
     if (status === 'back') {
@@ -49,14 +64,14 @@ exports.paymentCallbackHandler = async (req, res) => {
     // For success → verify actual payment status with BoxPay
     // Don't trust the redirect alone — always verify with BoxPay API
     try {
-      const { api_key, merchant_id } = await getMerchantCreds(appId, companyId);
+      // F-07 fix: use per-merchant mode to select prod vs test URL
+      const { api_key, merchant_id, mode } = await getMerchantCreds(appId, companyId);
+      const boxpayBaseUrl = getBoxpayBaseUrl(mode);
 
       // Call BoxPay to get real payment status
       const boxpayResponse = await axios.post(
-        `${BOXPAY_BASE_URL}/merchants/${merchant_id}/transactions/inquiries`,
-        {
-          token : redirectionResult
-        },
+        `${boxpayBaseUrl}/merchants/${merchant_id}/transactions/inquiries`,
+        { token: redirectionResult },
         {
           headers: {
             'Content-Type': 'application/json',
@@ -67,32 +82,30 @@ exports.paymentCallbackHandler = async (req, res) => {
       );
 
       const boxpayData = boxpayResponse.data;
-      const boxpayStatus = boxpayData?.status?.status.toUpperCase()
+      const boxpayStatus = boxpayData?.status?.status.toUpperCase();
 
-      console.log('LOG: BoxPay payment status verified:', boxpayData);
+      console.log('LOG: BoxPay payment status verified:', { gid, boxpayStatus });
 
       // Update Fynd with the payment status
       const response = await updateFyndPaymentStatus(gid, boxpayStatus, boxpayData, storedPayment);
 
-      if(!response.success) {
-        console.log('LOG: Payment failed/pending, redirecting to cancel_url', JSON.stringify(response, null, 2));
+      if (!response.success) {
+        console.log('LOG: Fynd update failed, redirecting to cancel_url');
         return res.redirect(cancel_url);
       }
+
       // Redirect customer based on verified status
       const successStatuses = ['AUTHORIZED', 'CAPTURED', 'SUCCESS', 'APPROVED'];
       if (successStatuses.includes(boxpayStatus)) {
         console.log('LOG: Payment successful, redirecting to success_url');
-        console.error('LOG: Success url:', success_url);
         return res.redirect(success_url);
       } else {
-        console.log('LOG: Payment failed/pending, redirecting to cancel_url');
-        console.error('LOG: Cancel url:', cancel_url);
+        console.log('LOG: Payment not successful, redirecting to cancel_url');
         return res.redirect(cancel_url);
       }
 
     } catch (verifyError) {
       console.error('LOG: Error verifying payment status:', verifyError.message);
-      // If verification fails, redirect to cancel_url to be safe
       return res.redirect(cancel_url);
     }
 
@@ -114,7 +127,13 @@ exports.processPaymentWebhookHandler = async (req, res) => {
     const { company_id: companyId, app_id: appId } = req.params;
     const webhookData = req.body;
 
-    console.log('LOG: Payment webhook received from BoxPay:', JSON.stringify(webhookData, null, 2));
+    // F-06: Log only non-PII fields from webhook (full payload may contain card/shopper data)
+    console.log('LOG: Payment webhook received from BoxPay', {
+      gid: webhookData?.additionalMerchantReference,
+      status: webhookData?.status?.status,
+      operation: webhookData?.status?.operation,
+      transactionId: webhookData?.transactionId,
+    });
 
     
     const gid = webhookData?.additionalMerchantReference;

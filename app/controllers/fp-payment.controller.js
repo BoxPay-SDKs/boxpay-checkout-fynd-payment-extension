@@ -121,7 +121,15 @@ const mapBoxPayRefundStatusToFynd = (boxpayStatus = '') => {
 exports.initiatePaymentToPGHandler = async (req, res, next) => {
   try {
     const requestPayload = req.body;
-    console.log('LOG: Payload received from Fynd platform', requestPayload);
+    // F-06: Log only non-PII identifiers — never log customer name/email/phone/address
+    console.log('LOG: Payment initiation received', {
+      gid: requestPayload.gid,
+      order_id: requestPayload.order_id,
+      amount: requestPayload.amount,
+      currency: requestPayload.currency,
+      app_id: requestPayload.app_id,
+      company_id: requestPayload.company_id,
+    });
 
     const {
       gid,
@@ -199,8 +207,8 @@ exports.initiatePaymentToPGHandler = async (req, res, next) => {
       frontendReturnUrl: extensionSuccessUrl,
     };
 
-    console.log('LOG: Calling BoxPay session API for merchant_id:', merchant_id, 'mode:', mode);
-    console.log('LOG: BoxPay payload:', JSON.stringify(boxpayPayload, null, 2));
+    // F-06: Log only non-PII fields from the BoxPay payload
+    console.log('LOG: Calling BoxPay session API', { merchant_id, mode, amount: boxpayPayload.money?.amount, currency: boxpayPayload.money?.currencyCode });
 
     // Call BoxPay session creation API
     // POST {boxpayBaseUrl}/merchants/:merchantId/sessions
@@ -217,7 +225,7 @@ exports.initiatePaymentToPGHandler = async (req, res, next) => {
     );
 
     const boxpayData = boxpayResponse.data;
-    console.log('LOG: BoxPay session API response:', JSON.stringify(boxpayData, null, 2));
+    console.log('LOG: BoxPay session API response received', { gid });
 
     // Extract checkout URL from BoxPay response
     const checkoutUrl =
@@ -298,7 +306,8 @@ exports.getPaymentDetailsHandler = async (req, res, next) => {
     );
 
     const boxpayData = boxpayResponse.data;
-    console.log('LOG: BoxPay payment status response:', JSON.stringify(boxpayData, null, 2));
+    // F-06: Log only status identifier, not full response (may contain PII)
+    console.log('LOG: BoxPay payment status response received', { gid, rawStatus: boxpayData?.status });
 
     // Map BoxPay status → Fynd status
     const rawStatus = boxpayData?.status || boxpayData?.data?.status || 'PENDING';
@@ -342,7 +351,7 @@ exports.getPaymentDetailsHandler = async (req, res, next) => {
       ],
     };
 
-    console.log('LOG: Response for get Payment Details', responseData);
+    console.log('LOG: Response for get Payment Details', { gid, status });
     return res.status(200).json(responseData);
 
   } catch (error) {
@@ -358,7 +367,8 @@ exports.getPaymentDetailsHandler = async (req, res, next) => {
 exports.createRefundHandler = async (req, res, next) => {
   try {
     const requestPayload = req.body;
-    console.log('LOG: Request body for create refund', requestPayload);
+    // F-06: Log only non-PII identifiers for refund request
+    console.log('LOG: Request for create refund', { gid: requestPayload.gid, amount: requestPayload.amount, currency: requestPayload.currency });
 
     const {
       gid,
@@ -470,7 +480,8 @@ exports.getRefundDetailsHandler = async (req, res, next) => {
     );
 
     const boxpayData = boxpayResponse.data;
-    console.log('LOG: BoxPay refund status response:', JSON.stringify(boxpayData, null, 2));
+    // F-06: Log only status, not full refund response (may contain PII)
+    console.log('LOG: BoxPay refund status response received', { gid, rawStatus: boxpayData?.status });
 
     // Map BoxPay refund status → Fynd refund status
     const rawStatus = boxpayData?.status || 'PENDING';
@@ -498,7 +509,7 @@ exports.getRefundDetailsHandler = async (req, res, next) => {
       ],
     };
 
-    console.log('LOG: Response for get Refund Details', responseData);
+    console.log('LOG: Response for get Refund Details', { gid, status });
     return res.status(200).json(responseData);
 
   } catch (error) {
